@@ -20,3 +20,9 @@ def psi_sho(n, x):
     return H(n, x) * np.exp(-x**2 / 2)
 
 def V_sho(x): return 0.5 * x**2
+
+def psi_H(theta, R):
+    return np.exp(-theta * np.linalg.norm(R, axis=-1))
+
+def V_H(R):
+    return -1 / np.linalg.norm(R, axis=-1)

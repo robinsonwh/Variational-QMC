@@ -30,3 +30,9 @@ def metropolis(f, x0, n_steps, step, burn_in=0, rng=None):
             samples[t - burn_in] = x                        # record every step, accepted or not
             n_accepted += accept.sum()
     return samples, n_accepted / ((n_steps - burn_in) * len(x))
+
+def laplacian(f, R, h, deriv=hot4):
+    return sum(deriv(lambda s: f(R + s * e), 0.0, h) for e in np.eye(R.shape[-1]))
+
+def local_energy_nd(f, V, R, h, deriv=hot4):
+    return -0.5 * laplacian(f, R, h, deriv) / f(R) + V(R)
