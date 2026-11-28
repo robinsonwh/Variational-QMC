@@ -1,7 +1,19 @@
 """
-Evaluates wavefunctions for simple harmonic oscillator and hydrogen atom.
+Evaluates wavefunctions for simple harmonic oscillator and hydrogen atom. Also times function calls.
 """
 import numpy as np
+import functools
+import time
+
+def timed(func):
+    """Print how long each call to func takes."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        t0 = time.perf_counter()
+        result = func(*args, **kwargs)
+        print(f"{func.__name__}: {time.perf_counter() - t0:.2f} s")
+        return result
+    return wrapper
 
 def H(n, x):
     if not isinstance(n, (int, np.integer)):

@@ -1,5 +1,4 @@
 import numpy as np
-import systems
 
 def hot2(f, x, h):
     return (f(x+h) - 2*f(x) + f(x-h))/h**2
@@ -8,7 +7,7 @@ def hot4(f, x, h):
     return (-f(x + 2*h) + 16*f(x + h) - 30*f(x) + 16*f(x - h) - f(x - 2*h))/(12*h**2)
 
 def hot6(f, x, h):
-    return (2*f(x + 3*h) - 27*f(x + 2*h) + 270*f(x + h) - 490*f(x) + 270*f(x - h) - 27*psi(x - 2*h) + 2*psi(x - 3*h))/(180*h**2)
+    return (2*f(x + 3*h) - 27*f(x + 2*h) + 270*f(x + h) - 490*f(x) + 270*f(x - h) - 27*f(x - 2*h) + 2*f(x - 3*h))/(180*h**2)
 
 def local_energy(f, V, x, h, deriv=hot4):
     return -0.5 * deriv(f, x, h) / f(x) + V(x)

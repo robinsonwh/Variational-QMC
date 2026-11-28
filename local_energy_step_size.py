@@ -1,10 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import timeit
 
 from pathlib import Path
 from functools import partial
 
-from systems import H, psi_sho, V_sho
+from systems import H, psi_sho, V_sho, timed
 from vqmc_core import hot2, hot4, hot6, local_energy
 
 x_grid = np.linspace(-8, 8, 40000) + 1e-7
@@ -15,10 +16,9 @@ def weighted_error(deriv, n, h, x=x_grid):
     rho = f(x)**2
     rho /= np.trapezoid(rho, x) # normalise the PDF on the grid
     h = np.asarray(h, dtype=float)[..., None]  # (len(h), 1) so it broadcasts against x -> (len(h), len(x))
-    return np.trapezoid(rho * np.abs(local_energy(deriv, n, x, h) - (n + 0.5)), x, axis=-1)
+    return np.trapezoid(rho * np.abs(local_energy(f, V_sho, x, h, deriv) - (n + 0.5)), x, axis=-1)
 
-if __name__ == "__main__":
-    Path("plots").mkdir(exist_ok=True)
+def make_error_plots():
     hs = np.logspace(-6, 0, 61)
     eps = np.finfo(float).eps
     for n in range(5):
@@ -32,3 +32,20 @@ if __name__ == "__main__":
         plt.legend()
         plt.savefig(f"plots/weighted_error_{n}.png", dpi=200)
         plt.close()
+
+def time_stencils(n=0):
+    """Cost of one local-energy evaluation over x_grid, for each stencil."""
+    f = partial(psi_sho, n)
+    base = None
+    for deriv in (hot2, hot4, hot6):
+        t = min(timeit.repeat(lambda: local_energy(f, V_sho, x_grid, 2e-3, deriv),
+                              number=1, repeat=20))
+        base = base or t
+        print(f"{deriv.__name__}: {t*1e3:.2f} ms ({t/base:.2f}x HOT2)")
+
+
+if __name__ == "__main__":
+    Path("plots").mkdir(exist_ok=True)
+    make_error_plots()
+    time_stencils()
+    

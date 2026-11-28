@@ -1,7 +1,7 @@
 import numpy as np
 from functools import partial
-from vqmc_core import metropolis, local_energy, local_energy_nd
-from systems import psi_sho, V_sho, V_H, psi_H
+from vqmc_core import metropolis, local_energy
+from systems import psi_sho, V_sho
 from pathlib import Path
 
 def main():
