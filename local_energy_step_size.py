@@ -21,17 +21,25 @@ def weighted_error(deriv, n, h, x=x_grid):
 def make_error_plots():
     hs = np.logspace(-6, 0, 61)
     eps = np.finfo(float).eps
+    fig, axes = plt.subplots(3, 2, figsize=(9, 10), sharex=False, sharey=False,
+                             layout="constrained")
+    axes = axes.ravel()
     for n in range(5):
-        plt.figure()
+        ax = axes[n]
         for deriv, label in [(hot2, "HOT2"), (hot4, "HOT4"), (hot6, "HOT6")]:
-            plt.loglog(hs, weighted_error(deriv, n, hs), label=label)
-        plt.loglog(hs, eps / hs**2, "k--", lw=1, label=r"$\epsilon/h^2$")
-        plt.title(rf"Weighted error for $\psi_{n}(x)$")
-        plt.xlabel("$h$ (oscillator units)")
-        plt.ylabel(r"$\rho$-weighted mean of $|E_l - E_n|$")
-        plt.legend()
-        plt.savefig(f"plots/weighted_error_{n}.png", dpi=200)
-        plt.close()
+            ax.loglog(hs, weighted_error(deriv, n, hs), label=label)
+        ax.loglog(hs, eps / hs**2, "k--", lw=1, label=r"$\epsilon/h^2$")
+        ax.set_title(rf"$\psi_{n}(x)$")
+    for ax in axes[4:5]:
+        ax.set_xlabel("$h$ (oscillator units)")
+    axes[3].set_xlabel("$h$ (oscillator units)")
+    for ax in axes[::2]:
+        ax.set_ylabel(r"$\rho$-weighted $|E_l - E_n|$")
+    handles, labels = axes[0].get_legend_handles_labels()
+    axes[5].axis("off")
+    axes[5].legend(handles, labels, loc="center", fontsize=12)
+    fig.savefig("plots/weighted_error.png", dpi=200)
+    plt.close(fig)
 
 def time_stencils(n=0):
     """Cost of one local-energy evaluation over x_grid, for each stencil."""
