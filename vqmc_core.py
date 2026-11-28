@@ -11,7 +11,6 @@ def hot6(f, x, h):
     return (2*f(x + 3*h) - 27*f(x + 2*h) + 270*f(x + h) - 490*f(x) + 270*f(x - h) - 27*psi(x - 2*h) + 2*psi(x - 3*h))/(180*h**2)
 
 def local_energy(f, V, x, h, deriv=hot4):
-    """E_l(x) = -(1/2) f''(x)/f(x) + V(x) for a 1D wavefunction f (eq. 13)."""
     return -0.5 * deriv(f, x, h) / f(x) + V(x)
 
 def metropolis(f, x0, n_steps, step, burn_in=0, rng=None):

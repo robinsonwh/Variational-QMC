@@ -1,3 +1,6 @@
+"""
+Evaluates wavefunctions for simple harmonic oscillator and hydrogen atom.
+"""
 import numpy as np
 
 def H(n, x):

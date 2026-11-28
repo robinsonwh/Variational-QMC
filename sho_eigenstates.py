@@ -1,19 +1,14 @@
 import numpy as np
 from functools import partial
-from vqmc_core import metropolis, local_energy, laplacian, local_energy_nd
-from systems import psi_sho, V_sho, V_H, psi_H, H
+from vqmc_core import metropolis, local_energy, local_energy_nd
+from systems import psi_sho, V_sho, V_H, psi_H
 from pathlib import Path
-import matplotlib.pyplot as plt
-
-from scipy.special import k1
 
 def main():
     Path("plots").mkdir(exist_ok=True)
     Path("results").mkdir(exist_ok=True)
     rng = np.random.default_rng(42)
     sho_energies(rng)
-
-
 
 def sho_energies(rng):
     for n in range(5):

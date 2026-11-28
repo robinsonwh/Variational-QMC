@@ -1,18 +1,30 @@
 import numpy as np
 from functools import partial
-from vqmc_core import metropolis, local_energy, laplacian, local_energy_nd
+from vqmc_core import metropolis, local_energy, local_energy_nd
 from systems import V_H, psi_H
 from pathlib import Path
 import matplotlib.pyplot as plt
+#import time
 
 from scipy.special import k1
 
 def main():
     Path("plots").mkdir(exist_ok=True)
     Path("results").mkdir(exist_ok=True)
-    rng = np.random.default_rng(42)
+    rngs = np.random.default_rng(42).spawn(6)
 
-    hydrogen_theta_scan(rng)
+    #hydrogen_theta_scan(rngs[0])
+    #sampler_check(rngs[1])
+    laplacian_check(rngs[2])
+
+    theta_opt, history = optimise_theta(rngs[3])
+    plot_optimisation(rngs[4])
+
+    H, H_err, samples = final_energy(theta_opt, rngs[5])
+    #Room to save xy data
+    plot_projected_density(samples, theta_opt)
+
+
 
 
 
@@ -61,6 +73,7 @@ def hydrogen_theta_scan(rng):
     plt.close(fig)
 
 
+
 def calculate_energy(theta, x0, rng, n_steps, burn_in, step, h=2.5e-4):
     f = partial(psi_H, theta)
     samples, acc = metropolis(f, x0, n_steps, step, burn_in, rng)
@@ -102,10 +115,89 @@ def sampler_check(rng):
 
 def n_xy(theta, x, y):
     s = np.sqrt(x**2 + y**2)
-    return 2 * theta ** 3 . np.pi * s * k1(2*theta*s)
+    return 2 * theta**3 / np.pi * s * k1(2*theta*s)
+
+def laplacian_check(rng, h=2.5e-4):
+    R = rng.normal(0, 1, (10000, 3))
+    r = np.linalg.norm(R, axis=-1)
+    print(r"theta | max(err) | median(err)")
+    for theta in np.linspace(0.5, 1.5, 11):
+        f = partial(psi_H, theta)
+        numerical = local_energy_nd(f, V_H, R, h)
+        analytic = -theta**2 / 2 + (theta - 1)/r
+        err = np.abs(numerical - analytic)
+        print(f"{theta:5.2f}   {err.max():.1e}     {np.median(err):.1e}")
+
+def optimise_theta(rng, theta0=None, alpha=1.0, max_iter=200, n_walkers=1000, n_steps=300,
+                   burn_in=50, h=2.5e-4, tol=1e-8, k_sigma=2.0, patience=3, strict=True):
+    theta = rng.uniform(0.5, 1.5) if theta0 is None else theta0
+    x = rng.normal(0, 1/theta, (n_walkers, 3))
+    history, n_ok = [], 0
+    for iter in range(max_iter):
+        f = partial(psi_H, theta)
+        samples, acc = metropolis(f, x, n_steps, 1/theta, burn_in, rng)
+        x = samples[-1].copy()
+        E = local_energy_nd(f, V_H, samples, h)
+        H = E.mean()
+        r = np.linalg.norm(samples, axis=-1)
+        gradient_walker = -2 * ((E - H) * r).mean(axis=0)
+        grad = gradient_walker.mean()
+        grad_err = gradient_walker.std(ddof=1) / np.sqrt(n_walkers)
+        history.append((theta, H, grad, grad_err))
+        theta -= alpha * grad
+        n_ok += 1 if abs(grad) < max(tol, k_sigma*grad_err) else 0
+        if n_ok >= patience:
+            break
+    if n_ok < patience:
+        msg = f"theta failed to converge in {max_iter} iterations (alpha={alpha})."
+        if strict:
+            raise ValueError(msg)
+        print("Warning: " + msg)
+    return theta, np.array(history)
+
+def plot_optimisation(rng, alphas=(0.1, 0.5, 1.0, 1.9), theta0=0.5):
+    fig, ax = plt.subplots(layout="constrained")
+    for alpha in alphas:
+        theta_opt, history = optimise_theta(rng, alpha=alpha, theta0=theta0, strict=False)
+        thetas = np.append(history[:, 0], theta_opt)
+        ax.semilogy(np.arange(len(thetas)), np.abs(thetas - 1), "o-", ms=3,
+                    label=rf"$\alpha = {alpha}$")
+    ax.set_xlabel("iteration")
+    ax.set_ylabel(r"$|\theta - 1|$")
+    ax.legend()
+    fig.savefig("plots/optimisation.png", dpi=200)
+
+def final_energy(theta_opt, rng, n_walkers=1000, n_steps=5500, burn_in=500):
+    x0 = rng.normal(0, 1/theta_opt, (n_walkers, 3))  #fresh walkers
+    H, E, samples = calculate_energy(theta_opt, x0, rng, n_steps, burn_in,
+                                     step=1/theta_opt)
+    walker_means = E.mean(axis=0)
+    H_err = walker_means.std(ddof=1) / np.sqrt(n_walkers)
+    print(f"theta* = {theta_opt:.10f}")
+    print(f"<H> = {H:.10f} +/- {H_err:.1e}, std(E_l) = {E.std():.1e}  (exact -0.5)")
+    return H, H_err, samples
+
+
 
 def plot_projected_density(samples, theta, L=4, bins=150):
-    x = samples[]
+    x = samples[..., 0].ravel()
+    y = samples[..., 1].ravel()
+    H, xedges, yedges = np.histogram2d(x, y, bins=bins, range=[[-L, L], [-L, L]], density=True)
+    
+    xc = 0.5 * (xedges[1:] + xedges[:-1])
+    yc = 0.5 * (yedges[1:] + yedges[:-1])
+    X, Y = np.meshgrid(xc, yc, indexing="ij")
+    exact = n_xy(theta, X, Y)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4.5), layout="constrained")
+    for ax, data, title in [(ax1, H, "VMC samples"), (ax2, exact, "Exact")]:
+        im = ax.pcolormesh(xedges, yedges, data.T, vmin=0, vmax=exact.max())
+        ax.set_aspect("equal")
+        ax.set_xlabel("$x$")
+        ax.set_ylabel("$y$")
+        ax.set_title(title)
+    fig.colorbar(im, ax=[ax1, ax2], label=r"$n_{xy}(x, y)$")
+    fig.savefig("plots/projected_density.png", dpi=200)
 
 
 if __name__ == "__main__":

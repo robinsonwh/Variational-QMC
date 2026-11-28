@@ -15,7 +15,7 @@ def weighted_error(deriv, n, h, x=x_grid):
     rho = f(x)**2
     rho /= np.trapezoid(rho, x) # normalise the PDF on the grid
     h = np.asarray(h, dtype=float)[..., None]  # (len(h), 1) so it broadcasts against x -> (len(h), len(x))
-    return np.trapezoid(rho * np.abs(E_l(deriv, n, x, h) - (n + 0.5)), x, axis=-1)
+    return np.trapezoid(rho * np.abs(local_energy(deriv, n, x, h) - (n + 0.5)), x, axis=-1)
 
 if __name__ == "__main__":
     Path("plots").mkdir(exist_ok=True)
